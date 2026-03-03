@@ -105,19 +105,119 @@ npm run dev
 
 ---
 
-## Docker Architecture
+## Docker Setup
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) (v20+)
+- [Docker Compose](https://docs.docker.com/compose/install/) (v2+)
+
+### Architecture
+
+The project uses a **3-container** setup orchestrated by Docker Compose:
+
+```
+                 ┌────────────────────────────────────────────┐
+                 │           shoevista-net (bridge)            │
+                 │                                            │
+  :5173 ◄───────┤  ┌──────────┐    ┌──────────┐    ┌───────┐ │
+  Browser ──────►│  │  client  │───►│  server  │───►│ mongo │ │
+                 │  │ (Vite)   │    │ (Express)│    │ (v7)  │ │
+                 │  │ :5173    │    │ :5000    │    │ :27017│ │
+                 │  └──────────┘    └──────────┘    └───────┘ │
+                 │                                     │      │
+                 └─────────────────────────────────────┼──────┘
+                                                       │
+                                              mongo-data volume
+```
+
+| Container           | Image / Build  | Port  | Purpose                    |
+|---------------------|----------------|-------|----------------------------|
+| `shoevista-client`  | `client/`      | 5173  | React + Vite dev server    |
+| `shoevista-server`  | `server/`      | 5000  | Express REST API           |
+| `shoevista-mongo`   | `mongo:7`      | 27017 | MongoDB database           |
+
+### File Structure
 
 ```
 ShoeVista/
+├── docker-compose.yml          # Orchestrates all 3 services
 ├── client/
-│   ├── Dockerfile          # Node 18 Alpine — runs Vite dev server
+│   ├── Dockerfile              # Node 18 Alpine → npm run dev
 │   └── .dockerignore
-├── server/
-│   ├── Dockerfile          # Node 18 Alpine — runs Express API
-│   └── .dockerignore
-└── docker-compose.yml      # Orchestrates client + server + MongoDB
+└── server/
+    ├── Dockerfile              # Node 18 Alpine → node index.js
+    └── .dockerignore
 ```
 
-All three services share a `shoevista-net` bridge network. MongoDB data is persisted in a named volume (`mongo-data`).
+### Quick Start
 
-Frontend runs on `http://localhost:5173` and the API on `http://localhost:5000/api/`.
+```bash
+# Clone the repo
+git clone https://github.com/majedul0/ShoeVista.git
+cd ShoeVista
+
+# Build and start all containers
+docker-compose up --build
+```
+
+Open **http://localhost:5173** in your browser.
+
+### Useful Commands
+
+```bash
+# Start in detached (background) mode
+docker-compose up --build -d
+
+# View running containers
+docker-compose ps
+
+# Follow logs for a specific service
+docker-compose logs -f server
+
+# Restart a single service
+docker-compose restart client
+
+# Stop all containers
+docker-compose down
+
+# Stop and wipe all data (removes MongoDB volume)
+docker-compose down -v
+
+# Rebuild a single service without cache
+docker-compose build --no-cache server
+```
+
+### Environment Variables
+
+Docker Compose injects these automatically — no `.env` files needed:
+
+| Variable         | Service  | Default Value                         |
+|------------------|----------|---------------------------------------|
+| `PORT`           | server   | `5000`                                |
+| `MONGO_URI`      | server   | `mongodb://mongo:27017/shoevista`     |
+| `VITE_BASE_URL`  | client   | `http://localhost:5000`               |
+
+> **Customizing:** To override values, create a `.env` file in the project root:
+> ```env
+> MONGO_URI=mongodb://mongo:27017/my_custom_db
+> VITE_BASE_URL=http://my-server:5000
+> ```
+> Then reference them in `docker-compose.yml` with `${VARIABLE_NAME}`.
+
+### Data Persistence
+
+MongoDB data is stored in a Docker named volume (`mongo-data`). Your data survives `docker-compose down` but is removed with `docker-compose down -v`.
+
+### Networking
+
+All services communicate over a private bridge network (`shoevista-net`). Inside the network, services reference each other by name (e.g., the server connects to MongoDB at `mongodb://mongo:27017`). Only the mapped ports (5173, 5000, 27017) are exposed to the host.
+
+### Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Port already in use | Stop the conflicting process or change the port mapping in `docker-compose.yml` |
+| MongoDB connection refused | Make sure the `mongo` container is healthy: `docker-compose logs mongo` |
+| Frontend can't reach API | Verify `VITE_BASE_URL` is set to `http://localhost:5000` |
+| Changes not reflected | Rebuild with `docker-compose up --build` |
