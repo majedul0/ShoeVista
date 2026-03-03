@@ -46,8 +46,40 @@ A full-stack e-commerce shoe store built with React (Vite) and Express/MongoDB.
 | Frontend | React, Vite, Tailwind CSS         |
 | Backend  | Node.js, Express                  |
 | Database | MongoDB (Mongoose)                |
+| DevOps   | Docker, Docker Compose            |
+
+---
 
 ## Getting Started
+
+### Option 1 — Docker (Recommended)
+
+Run the entire stack (client + server + MongoDB) with a single command:
+
+```bash
+docker-compose up --build
+```
+
+This starts:
+| Service  | URL                          |
+|----------|------------------------------|
+| Frontend | http://localhost:5173         |
+| API      | http://localhost:5000/api/    |
+| MongoDB  | mongodb://localhost:27017     |
+
+To stop everything:
+
+```bash
+docker-compose down
+```
+
+To stop and remove all data (volumes):
+
+```bash
+docker-compose down -v
+```
+
+### Option 2 — Manual
 
 ```bash
 # Install & run the backend
@@ -55,10 +87,37 @@ cd server
 npm install
 npm start
 
-# Install & run the frontend
+# Install & run the frontend (in another terminal)
 cd client
 npm install
 npm run dev
 ```
+
+> **Note:** For manual setup you need a running MongoDB instance and a `.env` file in `server/` with:
+> ```
+> PORT=5000
+> MONGO_URI=mongodb://localhost:27017/shoevista
+> ```
+> And a `.env` file in `client/` with:
+> ```
+> VITE_BASE_URL=http://localhost:5000
+> ```
+
+---
+
+## Docker Architecture
+
+```
+ShoeVista/
+├── client/
+│   ├── Dockerfile          # Node 18 Alpine — runs Vite dev server
+│   └── .dockerignore
+├── server/
+│   ├── Dockerfile          # Node 18 Alpine — runs Express API
+│   └── .dockerignore
+└── docker-compose.yml      # Orchestrates client + server + MongoDB
+```
+
+All three services share a `shoevista-net` bridge network. MongoDB data is persisted in a named volume (`mongo-data`).
 
 Frontend runs on `http://localhost:5173` and the API on `http://localhost:5000/api/`.

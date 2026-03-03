@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: shoevista-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - shoevista-net
+
+  server:
+    build: ./server
+    container_name: shoevista-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/shoevista
+    depends_on:
+      - mongo
+    networks:
+      - shoevista-net
+
+  client:
+    build: ./client
+    container_name: shoevista-client
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_BASE_URL=http://localhost:5000
+    depends_on:
+      - server
+    networks:
+      - shoevista-net
+
+volumes:
+  mongo-data:
+
+networks:
+  shoevista-net:
+    driver: bridge
