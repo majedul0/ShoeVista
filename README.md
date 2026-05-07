@@ -1,6 +1,7 @@
 # ShoeVista
 
 A full-stack e-commerce shoe store built with React (Vite) and Express/MongoDB.
+#underDevelopment
 
 ---
 
